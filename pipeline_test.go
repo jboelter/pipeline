@@ -1,7 +1,6 @@
 package pipeline_test
 
 import (
-	"errors"
 	"log"
 	"os"
 	"sync"
@@ -10,7 +9,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
-	"intel/pipeline"
+	"github.com/joshuaboelter/pipeline"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -137,9 +136,9 @@ func (g *EmptyGenerator) Name() string {
 	return "EmptyGenerator"
 }
 
-func (g *EmptyGenerator) Next() (interface{}, error) {
+func (g *EmptyGenerator) Next() interface{} {
 	g.NextCount++
-	return nil, errors.New("Done")
+	return nil
 }
 
 func (g *EmptyGenerator) Abort() {
@@ -157,14 +156,14 @@ func (g *AbortableGenerator) Name() string {
 	return "AbortableGenerator"
 }
 
-func (g *AbortableGenerator) Next() (interface{}, error) {
+func (g *AbortableGenerator) Next() interface{} {
 	g.NextCount++
 	if g.NextCount == 1 {
-		return g.NextCount, nil
+		return g.NextCount
 	} else {
 		// block while waiting for an abort signal
 		<-g.QuitChan
-		return nil, errors.New("Done")
+		return nil
 	}
 }
 
@@ -182,12 +181,12 @@ func (g *CountsToTenGenerator) Name() string {
 	return "CountsToTenGenerator"
 }
 
-func (g *CountsToTenGenerator) Next() (interface{}, error) {
+func (g *CountsToTenGenerator) Next() interface{} {
 	g.NextCount++
 	if g.NextCount <= 10 {
-		return g.NextCount, nil
+		return g.NextCount
 	}
-	return nil, errors.New("Done")
+	return nil
 }
 
 func (g *CountsToTenGenerator) Abort() {
