@@ -26,8 +26,8 @@ type Pipeline struct {
 	verbose   bool
 }
 
-func NewWithLogger(l *log.Logger, verbose bool) *Pipeline {
-	return &Pipeline{logger: l}
+func NewWithLogger(l *log.Logger, v bool) *Pipeline {
+	return &Pipeline{logger: l, verbose: v}
 }
 
 func New() *Pipeline {

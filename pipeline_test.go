@@ -29,8 +29,34 @@ func (s *TestSuite) TestNoGenerator(c *C) {
 	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
 }
 
+func (s *TestSuite) TestNoGeneratorWithLogger(c *C) {
+	logger := log.New(os.Stdout, "", 0)
+	p := pipeline.NewWithLogger(logger, true)
+
+	err := p.Run()
+
+	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
+
+	err = p.Abort()
+	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
+}
+
 func (s *TestSuite) TestNoStages(c *C) {
 	p := pipeline.New()
+	generator := &EmptyGenerator{}
+	p.AddGenerator(generator)
+
+	err := p.Run()
+	c.Assert(err, ErrorMatches, `\[PIPELINE\] There are no stages defined`)
+
+	c.Assert(generator.NextCount, Equals, 0)
+	c.Assert(generator.AbortCount, Equals, 0)
+}
+
+func (s *TestSuite) TestNoStagesWithLogger(c *C) {
+	logger := log.New(os.Stdout, "", 0)
+	p := pipeline.NewWithLogger(logger, true)
+
 	generator := &EmptyGenerator{}
 	p.AddGenerator(generator)
 
