@@ -9,7 +9,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
-	"github.com/joshuaboelter/pipeline"
+	"github.com/jboelter/pipeline"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -31,7 +31,9 @@ func (s *TestSuite) TestNoGenerator(c *C) {
 
 func (s *TestSuite) TestNoGeneratorWithLogger(c *C) {
 	logger := log.New(os.Stdout, "", 0)
-	p := pipeline.NewWithLogger(logger, true)
+	cfg := pipeline.DefaultConfig()
+	cfg.Logger, cfg.Verbose = logger, true
+	p := pipeline.NewWithConfig(cfg)
 
 	err := p.Run()
 
@@ -55,7 +57,9 @@ func (s *TestSuite) TestNoStages(c *C) {
 
 func (s *TestSuite) TestNoStagesWithLogger(c *C) {
 	logger := log.New(os.Stdout, "", 0)
-	p := pipeline.NewWithLogger(logger, true)
+	cfg := pipeline.DefaultConfig()
+	cfg.Logger, cfg.Verbose = logger, true
+	p := pipeline.NewWithConfig(cfg)
 
 	generator := &EmptyGenerator{}
 	p.AddGenerator(generator)
@@ -137,7 +141,9 @@ func (s *TestSuite) TestOneStageWithLogger(c *C) {
 	//boost our code coverage of logging output
 
 	logger := log.New(os.Stdout, "", 0)
-	p := pipeline.NewWithLogger(logger, true)
+	cfg := pipeline.DefaultConfig()
+	cfg.Logger, cfg.Verbose = logger, true
+	p := pipeline.NewWithConfig(cfg)
 	generator := &CountsToTenGenerator{}
 	p.AddGenerator(generator)
 

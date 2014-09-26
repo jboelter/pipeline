@@ -5,7 +5,7 @@ import (
 	"log"
 	"regexp"
 
-	"github.com/joshuaboelter/pipeline/example/job"
+	"github.com/jboelter/pipeline/example/job"
 )
 
 type FsGenerator struct {

@@ -6,7 +6,7 @@ composed together into different processing flows.
 
 ## Overview ##
 
-A more detailed example is provided in the /examples directory.  At it's core, the pipeline hides the 
+A more detailed example is provided in the /examples directory.  At it's core, the pipeline hides the
 complexity of managing the channels necessary to move a job through a series of stages for processing.
 
 
@@ -42,10 +42,9 @@ stages.  However, each stage may be instantiated in a number of goroutines defin
 ## Installation ##
 
 ```
-	go get github.com/joshuaboelter/pipeline
+	go get github.com/jboelter/pipeline
 ```
 
 ## Documentation ##
 
-[http://godoc.org/github.com/joshuaboelter/pipeline](http://godoc.org/github.com/joshuaboelter/pipeline)
-
+[http://godoc.org/github.com/jboelter/pipeline](http://godoc.org/github.com/jboelter/pipeline)

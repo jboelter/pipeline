@@ -1,7 +1,7 @@
 package terminus
 
 import (
-	"github.com/joshuaboelter/pipeline/example/job"
+	"github.com/jboelter/pipeline/example/job"
 	"log"
 )
 

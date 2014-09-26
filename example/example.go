@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/joshuaboelter/pipeline"
+	"github.com/jboelter/pipeline"
 
-	"github.com/joshuaboelter/pipeline/example/echo"
-	"github.com/joshuaboelter/pipeline/example/generator"
-	"github.com/joshuaboelter/pipeline/example/terminus"
+	"github.com/jboelter/pipeline/example/echo"
+	"github.com/jboelter/pipeline/example/generator"
+	"github.com/jboelter/pipeline/example/terminus"
 
 	"log"
 	"os"
