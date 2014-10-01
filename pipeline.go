@@ -213,7 +213,6 @@ func stage(in chan interface{}, out chan interface{}, id int, wg *sync.WaitGroup
 func (p *Pipeline) concurrency(s Stage) int {
 	if p.config.NoConcurrency {
 		return 1
-	} else {
-		return s.Concurrency()
 	}
+	return s.Concurrency()
 }

@@ -254,11 +254,11 @@ func (g *AbortableGenerator) Next() interface{} {
 	g.NextCount++
 	if g.NextCount == 1 {
 		return g.NextCount
-	} else {
-		// block while waiting for an abort signal
-		<-g.QuitChan
-		return nil
 	}
+
+	// block while waiting for an abort signal
+	<-g.QuitChan
+	return nil
 }
 
 func (g *AbortableGenerator) Abort() {
