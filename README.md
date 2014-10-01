@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jboelter/pipeline.png?branch=master)](https://travis-ci.org/jboelter/pipeline)
+
 # pipeline #
 
 Package pipeline allows a 'job' to be processed through a sequence of stages.
