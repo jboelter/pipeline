@@ -1,9 +1,11 @@
 package generator
 
 import (
-	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"regexp"
+	"sync/atomic"
 
 	"github.com/jboelter/pipeline/example/job"
 )
@@ -12,7 +14,8 @@ type FsGenerator struct {
 	jobs      chan *job.Job
 	path      string
 	fileregex string
-	log       *log.Logger
+	quit      int32
+	logger    *log.Logger
 }
 
 var Generator = &FsGenerator{}
@@ -23,63 +26,52 @@ func (g *FsGenerator) Name() string {
 
 func (g *FsGenerator) Next() interface{} {
 
+	q := atomic.LoadInt32(&g.quit)
+	if q > 0 {
+		g.logger.Println("[FSGenerator] aborted the generator")
+		return nil
+	}
+
+	// return the next job
 	j, ok := <-g.jobs
 
 	if ok {
 		return j
-
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (g *FsGenerator) Abort() {
-
-	g.log.Println("Ignoring abort request")
-
-	// called from anywhere that knows it can/should stop feeding the pipeline
-	//	close(g.quit)
+	g.logger.Println("[FSGenerator] aborting the generator")
+	atomic.StoreInt32(&g.quit, 1)
 }
 
 func (g *FsGenerator) Initialize(path string, fileregex string, l *log.Logger) {
-	g.log = l
+	g.logger = l
 	g.fileregex = fileregex
 	g.path = path
 
-	g.jobs = make(chan *job.Job, 1)
-	//	g.quit = make(chan struct{}, 1)
+	g.jobs = make(chan *job.Job, 10) // can be a deeper queue if the time to generate jobs jitters
 
 	go g.generate()
 }
 
 func (g *FsGenerator) generate() {
+	g.logger.Println("[FSGenerator] starting the generator")
 
 	defer close(g.jobs)
 
-	g.enumerate(g.path)
-}
-
-func (g *FsGenerator) enumerate(path string) {
-	files, err := ioutil.ReadDir(path)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, f := range files {
-
-		if f.IsDir() {
-			g.enumerate(path + "/" + f.Name())
+	filepath.Walk(g.path, func(p string, f os.FileInfo, err error) error {
+		if !f.IsDir() {
+			matched, err := regexp.MatchString(g.fileregex, f.Name())
+			if err != nil {
+				panic(err)
+			}
+			if matched {
+				g.logger.Printf("[FSGenerator] found file %v\n", p+"/"+f.Name())
+				g.jobs <- job.New(p + "/" + f.Name())
+			}
 		}
-
-		matched, err := regexp.MatchString(g.fileregex, f.Name())
-		if err != nil {
-			panic(err)
-		}
-
-		if !matched {
-			continue
-		}
-
-		g.jobs <- job.New(g.path + "/" + f.Name())
-	}
+		return nil
+	})
 }

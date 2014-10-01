@@ -7,55 +7,65 @@ import (
 	"sync/atomic"
 	"testing"
 
-	. "gopkg.in/check.v1"
-
 	"github.com/jboelter/pipeline"
 )
 
-func Test(t *testing.T) { TestingT(t) }
-
-type TestSuite struct{}
-
-var _ = Suite(&TestSuite{})
-
-func (s *TestSuite) TestNoGenerator(c *C) {
+func TestNoGenerator(t *testing.T) {
 	p := pipeline.New()
 
 	err := p.Run()
 
-	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
+	if err.Error() != `[PIPELINE] The generator cannot be nil` {
+		t.Errorf(`[PIPELINE] The generator cannot be nil`)
+	}
 
 	err = p.Abort()
-	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
+	if err.Error() != `[PIPELINE] The generator cannot be nil` {
+		t.Errorf(`[PIPELINE] The generator cannot be nil`)
+	}
 }
 
-func (s *TestSuite) TestNoGeneratorWithLogger(c *C) {
+func TestNoGeneratorWithLogger(t *testing.T) {
 	logger := log.New(os.Stdout, "", 0)
 	cfg := pipeline.DefaultConfig()
 	cfg.Logger, cfg.Verbose = logger, true
 	p := pipeline.NewWithConfig(cfg)
 
 	err := p.Run()
-
-	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
+	if err.Error() != `[PIPELINE] The generator cannot be nil` {
+		t.Errorf(`[PIPELINE] The generator cannot be nil`)
+	}
 
 	err = p.Abort()
-	c.Assert(err, ErrorMatches, `\[PIPELINE\] The generator cannot be nil`)
+	if err.Error() != `[PIPELINE] The generator cannot be nil` {
+		t.Errorf(`[PIPELINE] The generator cannot be nil`)
+	}
 }
 
-func (s *TestSuite) TestNoStages(c *C) {
+func TestNoStages(t *testing.T) {
 	p := pipeline.New()
 	generator := &EmptyGenerator{}
 	p.AddGenerator(generator)
 
 	err := p.Run()
-	c.Assert(err, ErrorMatches, `\[PIPELINE\] There are no stages defined`)
+	if err == nil {
+		t.Errorf(`error should not be nil`)
+	}
 
-	c.Assert(generator.NextCount, Equals, 0)
-	c.Assert(generator.AbortCount, Equals, 0)
+	if err.Error() != `[PIPELINE] There are no stages defined` {
+		t.Errorf(`[PIPELINE] There are no stages defined`)
+	}
+
+	if generator.NextCount != 0 {
+		t.Errorf("expected generator.NextCount == 0")
+	}
+
+	if generator.AbortCount != 0 {
+		t.Errorf("expected generator.AbortCount == 0")
+	}
 }
 
-func (s *TestSuite) TestNoStagesWithLogger(c *C) {
+func TestNoStagesWithLogger(t *testing.T) {
 	logger := log.New(os.Stdout, "", 0)
 	cfg := pipeline.DefaultConfig()
 	cfg.Logger, cfg.Verbose = logger, true
@@ -65,13 +75,24 @@ func (s *TestSuite) TestNoStagesWithLogger(c *C) {
 	p.AddGenerator(generator)
 
 	err := p.Run()
-	c.Assert(err, ErrorMatches, `\[PIPELINE\] There are no stages defined`)
+	if err == nil {
+		t.Errorf(`error should be nil`)
+	}
 
-	c.Assert(generator.NextCount, Equals, 0)
-	c.Assert(generator.AbortCount, Equals, 0)
+	if err.Error() != `[PIPELINE] There are no stages defined` {
+		t.Errorf(`[PIPELINE] There are no stages defined`)
+	}
+
+	if generator.NextCount != 0 {
+		t.Errorf("expected generator.NextCount == 0")
+	}
+
+	if generator.AbortCount != 0 {
+		t.Errorf("expected generator.AbortCount == 0")
+	}
 }
 
-func (s *TestSuite) TestOneStageNoJobs(c *C) {
+func TestOneStageNoJobs(t *testing.T) {
 	p := pipeline.New()
 	generator := &EmptyGenerator{}
 	p.AddGenerator(generator)
@@ -80,22 +101,38 @@ func (s *TestSuite) TestOneStageNoJobs(c *C) {
 	p.AddStage(stage)
 
 	err := p.Run()
-	c.Assert(err, Equals, nil)
+	if err != nil {
+		t.Errorf(`error should be nil`)
+	}
 
-	c.Assert(generator.NextCount, Equals, 1)
-	c.Assert(generator.AbortCount, Equals, 0)
+	if generator.NextCount != 1 {
+		t.Errorf("expected generator.NextCount == 1")
+	}
 
-	c.Assert(stage.ProcessCount, Equals, 0)
+	if generator.AbortCount != 0 {
+		t.Errorf("expected generator.AbortCount == 0")
+	}
+
+	if stage.ProcessCount != 0 {
+		t.Errorf("expected stage.ProcessCount == 0")
+	}
 
 	p.Abort()
 
-	c.Assert(generator.NextCount, Equals, 1)
-	c.Assert(generator.AbortCount, Equals, 1)
+	if generator.NextCount != 1 {
+		t.Errorf("expected generator.NextCount == 1")
+	}
 
-	c.Assert(stage.ProcessCount, Equals, 0)
+	if generator.AbortCount != 1 {
+		t.Errorf("expected generator.AbortCount == 1")
+	}
+
+	if stage.ProcessCount != 0 {
+		t.Errorf("expected stage.ProcessCount == 0")
+	}
 }
 
-func (s *TestSuite) TestOneStageAbortAfterOne(c *C) {
+func TestOneStageAbortAfterOne(t *testing.T) {
 	p := pipeline.New()
 	generator := &AbortableGenerator{}
 	generator.QuitChan = make(chan struct{})
@@ -109,14 +146,24 @@ func (s *TestSuite) TestOneStageAbortAfterOne(c *C) {
 	}()
 
 	err := p.Run()
-	c.Assert(err, Equals, nil)
+	if err != nil {
+		t.Errorf(`error should be nil`)
+	}
 
-	c.Assert(generator.NextCount, Equals, 2)
-	c.Assert(generator.AbortCount, Equals, 1)
-	c.Assert(stage.ProcessCount, Equals, 1)
+	if generator.NextCount != 2 {
+		t.Errorf("expected generator.NextCount == 2")
+	}
+
+	if generator.AbortCount != 1 {
+		t.Errorf("expected generator.AbortCount == 1")
+	}
+
+	if stage.ProcessCount != 1 {
+		t.Errorf("expected stage.ProcessCount == 1")
+	}
 }
 
-func (s *TestSuite) TestOneStageCountToTen(c *C) {
+func TestOneStageCountToTen(t *testing.T) {
 	p := pipeline.New()
 	generator := &CountsToTenGenerator{}
 	p.AddGenerator(generator)
@@ -130,14 +177,24 @@ func (s *TestSuite) TestOneStageCountToTen(c *C) {
 	p.AddStage(stage2)
 
 	err := p.Run()
-	c.Assert(err, Equals, nil)
+	if err != nil {
+		t.Errorf(`error should be nil`)
+	}
 
-	c.Assert(generator.NextCount, Equals, 11)
-	c.Assert(stage1.ProcessCount, Equals, 10)
-	c.Assert(stage2.ProcessCount, Equals, int32(10))
+	if generator.NextCount != 11 {
+		t.Errorf("expected generator.NextCount == 11")
+	}
+
+	if stage1.ProcessCount != 10 {
+		t.Errorf("expected stage1.ProcessCount == 10")
+	}
+
+	if stage2.ProcessCount != 10 {
+		t.Errorf("expected stage2.ProcessCount == 10")
+	}
 }
 
-func (s *TestSuite) TestOneStageWithLogger(c *C) {
+func TestOneStageWithLogger(t *testing.T) {
 	//boost our code coverage of logging output
 
 	logger := log.New(os.Stdout, "", 0)
@@ -151,11 +208,16 @@ func (s *TestSuite) TestOneStageWithLogger(c *C) {
 	p.AddStage(stage)
 
 	err := p.Run()
-	c.Assert(err, Equals, nil)
+	if err != nil {
+		t.Errorf(`error should be nil`)
+	}
+	if generator.NextCount != 11 {
+		t.Errorf("expected generator.NextCount == 11")
+	}
 
-	c.Assert(generator.NextCount, Equals, 11)
-
-	c.Assert(stage.ProcessCount, Equals, 10)
+	if stage.ProcessCount != 10 {
+		t.Errorf("expected stage.ProcessCount == 10")
+	}
 }
 
 /* test generator */

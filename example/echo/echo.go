@@ -21,7 +21,7 @@ func (s *Echo) Name() string {
 }
 
 func (s *Echo) Concurrency() int {
-	return 3
+	return 8
 }
 
 func (s *Echo) Process(i interface{}) {
