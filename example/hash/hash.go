@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2014-2016 Joshua Boelter
+// Copyright (c) 2014 Joshua Boelter
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,42 +20,49 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package delay
+package hash
 
 import (
-	"math/rand"
-	"time"
-
 	"github.com/jboelter/pipeline/example/job"
 
+	"crypto/sha256"
+	"encoding/hex"
+	"io/ioutil"
 	"log"
 )
 
-type Delay struct {
+type Hash struct {
 	log *log.Logger
 }
 
-var Stage = &Delay{}
+var Stage = &Hash{}
 
-func (s *Delay) SetLogger(l *log.Logger) {
+func (s *Hash) SetLogger(l *log.Logger) {
 	s.log = l
 }
 
-func (s *Delay) Name() string {
-	return "Delay"
+func (s *Hash) Name() string {
+	return "Hash"
 }
 
-func (s *Delay) Concurrency() int {
+func (s *Hash) Concurrency() int {
 	return 8
 }
 
-func (s *Delay) Process(i interface{}) {
+func (s *Hash) Process(i interface{}) {
 
 	j := i.(*job.Job)
 
-	// a dummy step that delays...
-	d := rand.Intn(100)
-	time.Sleep(time.Millisecond * time.Duration(d))
+	data, err := ioutil.ReadFile(j.Path)
+	if err != nil {
+		s.log.Printf("source=stage, name=hash, id=%v, error=%v", j.Id, err.Error())
+		j.Err = err
+		return
+	}
 
-	s.log.Printf("source=stage, name=delay, id=%v, delay=%v", j.Id, time.Millisecond*time.Duration(d))
+	h := sha256.Sum256(data)
+
+	j.Hash = hex.EncodeToString(h[:])
+
+	s.log.Printf("source=stage, name=hash, id=%v, hash=%v", j.Id, hex.EncodeToString(h[:]))
 }
