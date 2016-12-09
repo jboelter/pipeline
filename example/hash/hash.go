@@ -20,25 +20,54 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-package job
+package hash
 
 import (
+	"github.com/jboelter/pipeline/example/job"
+
+	"crypto/sha256"
+	"encoding/hex"
+	"io/ioutil"
+	"log"
 	"time"
 )
 
-type Job struct {
-	// filled in by the generator
-	ID   int64
-	Path string
-
-	Hash string
-
-	Err error // error state
+type Hash struct {
+	log *log.Logger
 }
 
-func New(path string) *Job {
-	return &Job{
-		ID:   time.Now().UTC().UnixNano(),
-		Path: path,
+var Stage = &Hash{}
+
+func (s *Hash) SetLogger(l *log.Logger) {
+	s.log = l
+}
+
+func (s *Hash) Name() string {
+	return "Hash"
+}
+
+func (s *Hash) Concurrency() int {
+	return 8
+}
+
+func (s *Hash) Process(i interface{}) {
+
+	j := i.(*job.Job)
+
+	start := time.Now()
+
+	data, err := ioutil.ReadFile(j.Path)
+	if err != nil {
+		s.log.Printf("source=stage, name=hash, id=%v, error=%v", j.ID, err.Error())
+		j.Err = err
+		return
 	}
+
+	h := sha256.Sum256(data)
+
+	duration := time.Since(start).Nanoseconds() % 1e6 / 1e3
+
+	j.Hash = hex.EncodeToString(h[:])
+
+	s.log.Printf("source=stage, name=hash, id=%v, hash=%v, size=%v, time=%vms", j.ID, hex.EncodeToString(h[:]), len(data), duration)
 }

@@ -1,6 +1,29 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2014 Joshua Boelter
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package generator
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,7 +51,7 @@ func (g *FsGenerator) Next() interface{} {
 
 	q := atomic.LoadInt32(&g.quit)
 	if q > 0 {
-		g.logger.Println("[FSGenerator] aborted the generator")
+		g.logger.Printf("source=generator, name=fsgenerator, action=aborting")
 		return nil
 	}
 
@@ -42,7 +65,7 @@ func (g *FsGenerator) Next() interface{} {
 }
 
 func (g *FsGenerator) Abort() {
-	g.logger.Println("[FSGenerator] aborting the generator")
+	g.logger.Printf("source=generator, name=fsgenerator, action=signal_abort")
 	atomic.StoreInt32(&g.quit, 1)
 }
 
@@ -57,19 +80,27 @@ func (g *FsGenerator) Initialize(path string, fileregex string, l *log.Logger) {
 }
 
 func (g *FsGenerator) generate() {
-	g.logger.Println("[FSGenerator] starting the generator")
+	g.logger.Printf("source=generator, name=fsgenerator, action=starting")
 
 	defer close(g.jobs)
 
 	filepath.Walk(g.path, func(p string, f os.FileInfo, err error) error {
+		q := atomic.LoadInt32(&g.quit)
+		if q > 0 {
+			g.logger.Printf("source=generator, name=fsgenerator, action=abort_walk")
+			// return an error to terminate the walk function
+			return errors.New("source=generator, name=fsgenerator, action=abort_walk")
+		}
+
 		if !f.IsDir() {
 			matched, err := regexp.MatchString(g.fileregex, f.Name())
 			if err != nil {
 				panic(err)
 			}
 			if matched {
-				g.logger.Printf("[FSGenerator] found file %v\n", p+"/"+f.Name())
-				g.jobs <- job.New(p + "/" + f.Name())
+				j := job.New(p)
+				g.logger.Printf("source=generator, name=fsgenerator, action=generate, id=%v, file=%v", j.ID, j.Path)
+				g.jobs <- j
 			}
 		}
 		return nil

@@ -1,3 +1,25 @@
+// The MIT License (MIT)
+//
+// Copyright (c) 2014 Joshua Boelter
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package pipeline
 
 import (
@@ -6,7 +28,15 @@ import (
 	"sync"
 )
 
-// Generator defines an interace that creates 'jobs' to be processed by the pipeline
+// ErrNilGenerator is returned when the pipeline has a nil generator.
+// Set a generator by calling SetGenerator.
+var ErrNilGenerator = errors.New("pipeline: the generator cannot be nil")
+
+// ErrNoStages is returned when the pipeline has no stages.  Call AddStage
+// to add one more more stages to the pipeline.
+var ErrNoStages = errors.New("pipeline: there are no stages defined")
+
+// Generator defines an interface that creates 'jobs' to be processed by the pipeline
 type Generator interface {
 	Name() string
 	Next() interface{}
@@ -22,80 +52,85 @@ type Stage interface {
 
 // Pipeline defines the container for the generator and stages
 type Pipeline struct {
+	_         struct{}
 	generator Generator
 	stages    []Stage
 	channels  []chan interface{}
-	config    PipelineConfig
+	config    Config
 }
 
-type PipelineConfig struct {
+// Config defines the configuration for a Pipeline
+type Config struct {
+	_             struct{}
 	Logger        *log.Logger
-	Buffered      bool
 	Depth         int
+	Buffered      bool
 	NoConcurrency bool
 	Verbose       bool
 }
 
-func DefaultConfig() PipelineConfig {
-	var cfg PipelineConfig
-	cfg.Buffered = true
-	cfg.Depth = 10
-	return cfg
+// DefaultConfig provides a default configuration with buffering
+func DefaultConfig() Config {
+	return Config{
+		Buffered: true,
+		Depth:    10,
+	}
 }
 
-func NewWithConfig(cfg PipelineConfig) *Pipeline {
+// NewWithConfig creates a new Pipeline with the provided configuration
+func NewWithConfig(cfg Config) *Pipeline {
 	return &Pipeline{
 		config: cfg,
 	}
 }
 
+// New creates a new Pipeline with the default configuration
 func New() *Pipeline {
-	return &Pipeline{}
+	return &Pipeline{
+		config: DefaultConfig(),
+	}
 }
 
+// Abort gracefully terminates a Pipeline by calling Abort on the generator
 func (p *Pipeline) Abort() error {
 
 	if p.generator == nil {
 		if p.config.Logger != nil {
-			p.config.Logger.Println("[PIPELINE] The generator cannot be nil")
+			p.config.Logger.Println("source=pipeline, error=generator cannot be nil") //TODO print the error itself
 		}
-		return errors.New("[PIPELINE] The generator cannot be nil")
+		return ErrNilGenerator
 	}
 	p.generator.Abort()
 	return nil
 }
 
-/*
-This call will block until the pipeline has completed.
-*/
+// Run will pull work from the generator and pass it through the pipeline. This
+// call will block until the pipeline has completed.
 func (p *Pipeline) Run() error {
 
 	if p.generator == nil {
 		if p.config.Logger != nil {
-			p.config.Logger.Println("[PIPELINE] The generator cannot be nil")
+			p.config.Logger.Println("source=pipeline, error=generator cannot be nil")
 		}
-		return errors.New("[PIPELINE] The generator cannot be nil")
+		return ErrNilGenerator
 	}
 
 	if len(p.stages) == 0 {
 		if p.config.Logger != nil {
-			p.config.Logger.Println("[PIPELINE] There are no stages defined")
+			p.config.Logger.Println("source=pipeline, error=there are no stages defined")
 		}
-		return errors.New("[PIPELINE] There are no stages defined")
+		return ErrNoStages
 	}
 
 	if p.config.Logger != nil {
-		p.config.Logger.Printf("[PIPELINE] ----------------------------------------\n")
-		p.config.Logger.Printf("[PIPELINE] Pipeline\n")
-		p.config.Logger.Printf("[PIPELINE] Generator: %v\n", p.generator.Name())
+		p.config.Logger.Printf("source=pipeline, notice=config, generator=%v, buffered=%v, concurrency=%v, verbose=%v\n", p.generator.Name(), p.config.Buffered, !p.config.NoConcurrency, p.config.Verbose)
 		for _, s := range p.stages {
-			p.config.Logger.Printf("[PIPELINE] Stage: %v x %v\n", s.Name(), p.concurrency(s))
+			p.config.Logger.Printf("source=pipeline, notice=config, stage=%v, concurrency=%v\n", s.Name(), p.concurrency(s))
 		}
-		p.config.Logger.Printf("[PIPELINE] ----------------------------------------\n")
 	}
 
 	if p.config.Logger != nil && p.config.Verbose {
-		p.config.Logger.Printf("[PIPELINE] launching the generator %v\n", p.generator.Name())
+		p.config.Logger.Printf("source=pipeline, action=starting")
 	}
 
 	go func() {
@@ -103,13 +138,13 @@ func (p *Pipeline) Run() error {
 		for {
 			job := p.generator.Next()
 			if job != nil {
-				if p.config.Logger != nil && p.config.Verbose {
-					p.config.Logger.Printf("[PIPELINE] generator is enqueing %+v\n", job)
-				}
+				// if p.config.Logger != nil && p.config.Verbose {
+				// 	p.config.Logger.Printf("source=pipeline, action=enqueing, job=%+v\n", job)
+				// }
 				p.channels[0] <- job
 			} else {
 				if p.config.Logger != nil && p.config.Verbose {
-					p.config.Logger.Println("[PIPELINE] The generator is done")
+					p.config.Logger.Println("source=pipeline, action=closing")
 				}
 				break // will execute the deferred close of the channel
 			}
@@ -121,11 +156,11 @@ func (p *Pipeline) Run() error {
 	// write to the next
 	for idx, s := range p.stages {
 		if p.config.Logger != nil && p.config.Verbose {
-			p.config.Logger.Printf("[PIPELINE] go stage %v with concurrency %v\n", s.Name(), p.concurrency(s))
+			p.config.Logger.Printf("source=pipeline, action=launching, stage=%v, concurrency=%v\n", s.Name(), p.concurrency(s))
 		}
 
 		wg := &sync.WaitGroup{}
-		// for id := 0; id < 1; id++ { // if you want 1 goroutine each; helps w/ debugging
+		// set cfg.NoConcurrency = true if you want 1 goroutine each; helps w/ debugging
 		for id := 0; id < p.concurrency(s); id++ {
 			wg.Add(1)
 			go stage(p.channels[idx], p.channels[idx+1], id, wg, s, p.config.Logger, p.config.Verbose)
@@ -133,37 +168,42 @@ func (p *Pipeline) Run() error {
 	}
 
 	// drain the last channel
-	for _ = range p.channels[len(p.channels)-1] {
+	for range p.channels[len(p.channels)-1] {
+	}
+
+	if p.config.Logger != nil && p.config.Verbose {
+		p.config.Logger.Println("source=pipeline, action=terminating")
 	}
 
 	return nil
 }
 
-func (p *Pipeline) AddGenerator(generator Generator) {
+// SetGenerator sets the generator for the Pipeline
+func (p *Pipeline) SetGenerator(generator Generator) {
 	c := make(chan interface{}, 1)
 	p.channels = append(p.channels, c)
 	p.generator = generator
 }
 
-/*
-	Add a stage to the pipeline.  Jobs are passed through the
-	stages are executed in the order they are added.
-*/
-func (p *Pipeline) AddStage(s Stage) {
+// AddStage adds 1 or more stages to the pipeline.  Jobs are passed through the
+// stages in the order they are added.
+func (p *Pipeline) AddStage(stages ...Stage) {
 	// creates the next channel in the list
 	// reads from the upstream channel
 	// writes to the channel created here
 
-	var c chan interface{}
+	for _, s := range stages {
+		var c chan interface{}
 
-	if p.config.Buffered {
-		c = make(chan interface{}, p.concurrency(s)*p.config.Depth)
-	} else {
-		c = make(chan interface{})
+		if p.config.Buffered {
+			c = make(chan interface{}, p.concurrency(s)*p.config.Depth)
+		} else {
+			c = make(chan interface{})
+		}
+
+		p.channels = append(p.channels, c)
+		p.stages = append(p.stages, s)
 	}
-
-	p.channels = append(p.channels, c)
-	p.stages = append(p.stages, s)
 }
 
 func stage(in chan interface{}, out chan interface{}, id int, wg *sync.WaitGroup, s Stage, logger *log.Logger, verbose bool) {
@@ -172,11 +212,11 @@ func stage(in chan interface{}, out chan interface{}, id int, wg *sync.WaitGroup
 	if id == 0 {
 		defer func() {
 			if logger != nil && verbose {
-				logger.Printf("[PIPELINE] %v:%v doing wg.Wait()\n", s.Name(), id)
+				logger.Printf("source=pipeline, stage=%v:%v, action=wait\n", s.Name(), id)
 			}
 			wg.Wait()
 			if logger != nil && verbose {
-				logger.Printf("[PIPELINE] %v:%v closing out channel\n", s.Name(), id)
+				logger.Printf("source=pipeline, stage=%v:%v, action=closing channel\n", s.Name(), id)
 			}
 			close(out)
 		}()
@@ -185,28 +225,24 @@ func stage(in chan interface{}, out chan interface{}, id int, wg *sync.WaitGroup
 	// defer the waitgroup notification
 	defer func() {
 		if logger != nil && verbose {
-			logger.Printf("[PIPELINE] %v:%v doing wg.Done()\n", s.Name(), id)
+			logger.Printf("source=pipeline, stage=%v:%v, action=done\n", s.Name(), id)
 		}
 		wg.Done()
 	}()
 
 	if logger != nil {
-		logger.Printf("[PIPELINE] %v:%v stage is ready for work\n", s.Name(), id)
+		logger.Printf("source=pipeline, stage=%v:%v, action=ready\n", s.Name(), id)
 	}
 
 	for job := range in {
 		if logger != nil && verbose {
-			logger.Printf("[PIPELINE] %v:%v processing\n", s.Name(), id)
+			logger.Printf("source=pipeline, stage=%v:%v, action=processing\n", s.Name(), id)
 		}
 
 		s.Process(job)
 
 		// send it to the next stage
 		out <- job
-	}
-
-	if logger != nil {
-		logger.Printf("[PIPELINE] %v:%v stage has no more work\n", s.Name(), id)
 	}
 }
 
