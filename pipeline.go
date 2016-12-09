@@ -36,7 +36,7 @@ var ErrNilGenerator = errors.New("pipeline: the generator cannot be nil")
 // to add one more more stages to the pipeline.
 var ErrNoStages = errors.New("pipeline: there are no stages defined")
 
-// Generator defines an interace that creates 'jobs' to be processed by the pipeline
+// Generator defines an interface that creates 'jobs' to be processed by the pipeline
 type Generator interface {
 	Name() string
 	Next() interface{}
@@ -52,6 +52,7 @@ type Stage interface {
 
 // Pipeline defines the container for the generator and stages
 type Pipeline struct {
+	_         struct{}
 	generator Generator
 	stages    []Stage
 	channels  []chan interface{}
@@ -60,19 +61,20 @@ type Pipeline struct {
 
 // Config defines the configuration for a Pipeline
 type Config struct {
+	_             struct{}
 	Logger        *log.Logger
-	Buffered      bool
 	Depth         int
+	Buffered      bool
 	NoConcurrency bool
 	Verbose       bool
 }
 
 // DefaultConfig provides a default configuration with buffering
 func DefaultConfig() Config {
-	var cfg Config
-	cfg.Buffered = true
-	cfg.Depth = 10
-	return cfg
+	return Config{
+		Buffered: true,
+		Depth:    10,
+	}
 }
 
 // NewWithConfig creates a new Pipeline with the provided configuration
@@ -94,7 +96,7 @@ func (p *Pipeline) Abort() error {
 
 	if p.generator == nil {
 		if p.config.Logger != nil {
-			p.config.Logger.Println("source=pipeline, error=generator cannot be nil") //TODO print the error itself
+			p.config.Logger.Println("source=pipeline, error='generator cannot be nil'") //TODO print the error itself
 		}
 		return ErrNilGenerator
 	}
@@ -108,27 +110,27 @@ func (p *Pipeline) Run() error {
 
 	if p.generator == nil {
 		if p.config.Logger != nil {
-			p.config.Logger.Println("source=pipeline, error=generator cannot be nil")
+			p.config.Logger.Println("source=pipeline, error='generator cannot be nil'")
 		}
 		return ErrNilGenerator
 	}
 
 	if len(p.stages) == 0 {
 		if p.config.Logger != nil {
-			p.config.Logger.Println("source=pipeline, error=there are no stages defined")
+			p.config.Logger.Println("source=pipeline, error='there are no stages defined'")
 		}
 		return ErrNoStages
 	}
 
 	if p.config.Logger != nil {
-		p.config.Logger.Printf("source=pipeline, notice=config, generator=%v, buffered=%v, concurrency=%v, verbose=%v\n", p.generator.Name(), p.config.Buffered, !p.config.NoConcurrency, p.config.Verbose)
+		p.config.Logger.Printf("source=pipeline, notice=config, generator='%v', buffered=%v, concurrency=%v, verbose=%v\n", p.generator.Name(), p.config.Buffered, !p.config.NoConcurrency, p.config.Verbose)
 		for _, s := range p.stages {
-			p.config.Logger.Printf("source=pipeline, notice=config, stage=%v, concurrency=%v\n", s.Name(), p.concurrency(s))
+			p.config.Logger.Printf("source=pipeline, notice=config, stage='%v', concurrency=%v\n", s.Name(), p.concurrency(s))
 		}
 	}
 
 	if p.config.Logger != nil && p.config.Verbose {
-		p.config.Logger.Printf("source=pipeline, action=starting")
+		p.config.Logger.Println("source=pipeline, action=starting")
 	}
 
 	go func() {
@@ -136,9 +138,6 @@ func (p *Pipeline) Run() error {
 		for {
 			job := p.generator.Next()
 			if job != nil {
-				// if p.config.Logger != nil && p.config.Verbose {
-				// 	p.config.Logger.Printf("source=pipeline, action=enqueing, job=%+v\n", job)
-				// }
 				p.channels[0] <- job
 			} else {
 				if p.config.Logger != nil && p.config.Verbose {
@@ -154,7 +153,7 @@ func (p *Pipeline) Run() error {
 	// write to the next
 	for idx, s := range p.stages {
 		if p.config.Logger != nil && p.config.Verbose {
-			p.config.Logger.Printf("source=pipeline, action=launching, stage=%v, concurrency=%v\n", s.Name(), p.concurrency(s))
+			p.config.Logger.Printf("source=pipeline, action=launching, stage='%v', concurrency=%v\n", s.Name(), p.concurrency(s))
 		}
 
 		wg := &sync.WaitGroup{}
@@ -166,7 +165,7 @@ func (p *Pipeline) Run() error {
 	}
 
 	// drain the last channel
-	for _ = range p.channels[len(p.channels)-1] {
+	for range p.channels[len(p.channels)-1] {
 	}
 
 	if p.config.Logger != nil && p.config.Verbose {
@@ -210,11 +209,11 @@ func stage(in chan interface{}, out chan interface{}, id int, wg *sync.WaitGroup
 	if id == 0 {
 		defer func() {
 			if logger != nil && verbose {
-				logger.Printf("source=pipeline, stage=%v:%v, action=wait\n", s.Name(), id)
+				logger.Printf("source=pipeline, stage='%v:%v', action=wait\n", s.Name(), id)
 			}
 			wg.Wait()
 			if logger != nil && verbose {
-				logger.Printf("source=pipeline, stage=%v:%v, action=closing channel\n", s.Name(), id)
+				logger.Printf("source=pipeline, stage='%v:%v', action=closing channel\n", s.Name(), id)
 			}
 			close(out)
 		}()
@@ -223,18 +222,18 @@ func stage(in chan interface{}, out chan interface{}, id int, wg *sync.WaitGroup
 	// defer the waitgroup notification
 	defer func() {
 		if logger != nil && verbose {
-			logger.Printf("source=pipeline, stage=%v:%v, action=done\n", s.Name(), id)
+			logger.Printf("source=pipeline, stage='%v:%v', action=done\n", s.Name(), id)
 		}
 		wg.Done()
 	}()
 
 	if logger != nil {
-		logger.Printf("source=pipeline, stage=%v:%v, action=ready\n", s.Name(), id)
+		logger.Printf("source=pipeline, stage='%v:%v', action=ready\n", s.Name(), id)
 	}
 
 	for job := range in {
 		if logger != nil && verbose {
-			logger.Printf("source=pipeline, stage=%v:%v, action=processing\n", s.Name(), id)
+			logger.Printf("source=pipeline, stage='%v:%v', action=processing\n", s.Name(), id)
 		}
 
 		s.Process(job)

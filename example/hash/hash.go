@@ -1,6 +1,6 @@
 // The MIT License (MIT)
 //
-// Copyright (c) 2014 Joshua Boelter
+// Copyright (c) 2014-2016 Joshua Boelter
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,13 @@
 package hash
 
 import (
-	"github.com/jboelter/pipeline/example/job"
-
 	"crypto/sha256"
 	"encoding/hex"
 	"io/ioutil"
 	"log"
+	"time"
+
+	"github.com/jboelter/pipeline/example/job"
 )
 
 type Hash struct {
@@ -53,16 +54,20 @@ func (s *Hash) Process(i interface{}) {
 
 	j := i.(*job.Job)
 
+	start := time.Now()
+
 	data, err := ioutil.ReadFile(j.Path)
 	if err != nil {
-		s.log.Printf("source=stage, name=hash, id=%v, error=%v", j.Id, err.Error())
+		s.log.Printf("source=stage, name=hash, id=%v, error=%v", j.ID, err.Error())
 		j.Err = err
 		return
 	}
 
 	h := sha256.Sum256(data)
 
+	duration := time.Since(start).Nanoseconds() % 1e6 / 1e3
+
 	j.Hash = hex.EncodeToString(h[:])
 
-	s.log.Printf("source=stage, name=hash, id=%v, hash=%v", j.Id, hex.EncodeToString(h[:]))
+	s.log.Printf("source=stage, name=hash, id=%v, hash=%v, size=%v, elapsed=%vms", j.ID, hex.EncodeToString(h[:]), len(data), duration)
 }

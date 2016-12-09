@@ -51,8 +51,8 @@ func (s *Terminus) Process(i interface{}) {
 	j := i.(*job.Job)
 
 	if j.Err != nil {
-		s.log.Printf("source=stage, name=terminus, id=%v, result=%v", j.Id, j.Err)
+		s.log.Printf("source=stage, name=terminus, id=%v, result=error, error='%v'", j.ID, j.Err)
 	} else {
-		s.log.Printf("source=stage, name=terminus, id=%v, result=success", j.Id)
+		s.log.Printf("source=stage, name=terminus, id=%v, result=success", j.ID)
 	}
 }

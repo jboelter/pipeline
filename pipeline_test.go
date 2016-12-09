@@ -142,7 +142,9 @@ func TestOneStageNoJobs(t *testing.T) {
 		t.Errorf("expected stage.ProcessCount == 0")
 	}
 
-	p.Abort()
+	if p.Abort() != nil {
+		t.Errorf("expected p.Abort() == nil")
+	}
 
 	if generator.NextCount != 1 {
 		t.Errorf("expected generator.NextCount == 1")
@@ -167,7 +169,10 @@ func TestOneStageAbortAfterOne(t *testing.T) {
 	p.AddStage(stage)
 
 	go func() {
-		p.Abort()
+		if p.Abort() != nil {
+			t.Errorf("expected p.Abort() == nil")
+		}
+
 	}()
 
 	err := p.Run()

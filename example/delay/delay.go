@@ -57,5 +57,5 @@ func (s *Delay) Process(i interface{}) {
 	d := rand.Intn(100)
 	time.Sleep(time.Millisecond * time.Duration(d))
 
-	s.log.Printf("source=stage, name=delay, id=%v, delay=%v", j.Id, time.Millisecond*time.Duration(d))
+	s.log.Printf("source=stage, name=delay, id=%v, delay=%v", j.ID, time.Millisecond*time.Duration(d))
 }

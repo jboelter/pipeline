@@ -99,7 +99,7 @@ func (g *FsGenerator) generate() {
 			}
 			if matched {
 				j := job.New(p)
-				g.logger.Printf("source=generator, name=fsgenerator, action=generate, id=%v, file=%v", j.Id, j.Path)
+				g.logger.Printf("source=generator, name=fsgenerator, action=generate, id=%v, file='%v'", j.ID, j.Path)
 				g.jobs <- j
 			}
 		}

@@ -50,5 +50,5 @@ func (s *Echo) Process(i interface{}) {
 
 	j := i.(*job.Job)
 
-	s.log.Printf("source=stage, name=echo, id=%v, result=%v", j.Id, j.Path)
+	s.log.Printf("source=stage, name=echo, id=%v, result='%v'", j.ID, j.Path)
 }

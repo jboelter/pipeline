@@ -23,19 +23,17 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/jboelter/pipeline"
-
 	"github.com/jboelter/pipeline/example/delay"
 	"github.com/jboelter/pipeline/example/echo"
 	"github.com/jboelter/pipeline/example/generator"
 	"github.com/jboelter/pipeline/example/hash"
 	"github.com/jboelter/pipeline/example/terminus"
-
-	"log"
-	"os"
-	"os/signal"
 )
 
 var flagBuffer bool

@@ -28,7 +28,7 @@ import (
 
 type Job struct {
 	// filled in by the generator
-	Id   int64
+	ID   int64
 	Path string
 
 	Hash string
@@ -38,7 +38,7 @@ type Job struct {
 
 func New(path string) *Job {
 	return &Job{
-		Id:   time.Now().UTC().UnixNano(),
+		ID:   time.Now().UTC().UnixNano(),
 		Path: path,
 	}
 }
